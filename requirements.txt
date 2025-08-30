@@ -6,3 +6,4 @@ pydantic
 torch
 torchaudio
 python-multipart
+soundfile
