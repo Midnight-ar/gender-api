@@ -5,3 +5,4 @@ transformers
 pydantic
 torch
 torchaudio
+python-multipart
