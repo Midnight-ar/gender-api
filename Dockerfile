@@ -1,18 +1,21 @@
 FROM python:3.10-slim
 
-# System deps (ffmpeg helps decode mp3/ogg/flac reliably)
-RUN apt-get update && apt-get install -y --no-install-recommends     ffmpeg  && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (audio backends for torchaudio & ffmpeg for mp3/ogg/flac)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsndfile1 \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Python deps
-COPY requirements.txt /app/requirements.txt
+# Install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# App code
-COPY app.py /app/app.py
+# Copy app code
+COPY . .
 
-# Hugging Face Spaces expects your app to listen on $PORT (default 7860)
+# Railway/Render expect your app to listen on $PORT
 ENV PORT=8000
 EXPOSE 8000
 
