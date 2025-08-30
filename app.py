@@ -107,6 +107,11 @@ async def predict(file: UploadFile = File(...)):
 
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
+        ENV PORT=8000
+EXPOSE 8000
+
+# Start FastAPI with uvicorn
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
 if __name__ == "__main__":
     import os
     import uvicorn
