@@ -1,10 +1,10 @@
-import io
 import os
 import tempfile
 from pathlib import Path
 
 import torch
 import torchaudio
+import soundfile as sf
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -70,18 +70,16 @@ async def predict(file: UploadFile = File(...)):
             tmp.write(raw)
             tmp_path = tmp.name
 
-        # Load audio
-        waveform, sr = torchaudio.load(tmp_path)
+        # --- Load audio with soundfile instead of torchaudio.load ---
+        waveform, sr = sf.read(tmp_path, dtype="float32")
+        os.unlink(tmp_path)
 
-        # Clean up
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
+        # If stereo, average to mono
+        if waveform.ndim > 1:
+            waveform = waveform.mean(axis=1)
 
-        # Stereo → mono
-        if waveform.shape[0] > 1:
-            waveform = torch.mean(waveform, dim=0, keepdim=True)
+        # Convert to torch tensor shape [1, n_samples]
+        waveform = torch.tensor(waveform).unsqueeze(0)
 
         # Resample to 16kHz if needed
         if sr != TARGET_SR:
@@ -109,7 +107,6 @@ async def predict(file: UploadFile = File(...)):
 
     except Exception as e:
         import traceback
-        # 🔥 Debugging logs for Railway
         print("🔥 Error in /predict:", e)
         traceback.print_exc()
         return JSONResponse(status_code=400, content={"error": str(e)})
@@ -120,4 +117,3 @@ if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
