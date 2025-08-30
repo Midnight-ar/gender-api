@@ -105,11 +105,9 @@ async def predict(file: UploadFile = File(...)):
         top_idx = int(probs.argmax())
         return JSONResponse(content={"top": labels[top_idx], "scores": result})
 
-   except Exception as e:
-    import traceback
-    print("🔥 Error in /predict:", e)
-    traceback.print_exc()
-    return JSONResponse(status_code=400, content={"error": str(e)})
+
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
 
 if __name__ == "__main__":
     import os
