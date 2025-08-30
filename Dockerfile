@@ -13,8 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py /app/app.py
 
 # Hugging Face Spaces expects your app to listen on $PORT (default 7860)
-ENV PORT=7860
-EXPOSE 7860
+ENV PORT=8000
+EXPOSE 8000
 
 # Start FastAPI with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
