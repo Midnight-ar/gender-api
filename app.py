@@ -1,5 +1,5 @@
-import os
 import io
+import os
 import tempfile
 from pathlib import Path
 
@@ -11,29 +11,29 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from transformers import Wav2Vec2Processor, AutoModelForAudioClassification
 
 # -----------------------------
-# Model & processor (CPU)
+# Model & processor
 # -----------------------------
 processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 model = AutoModelForAudioClassification.from_pretrained(
     "prithivMLmods/Common-Voice-Gender-Detection"
 )
-model.eval()  # eval mode
+model.eval()
 
 # -----------------------------
 # FastAPI
 # -----------------------------
-app = FastAPI(title="Gender Detection API (HF Spaces)")
+app = FastAPI(title="Gender Detection API")
 
-# Allow your app / web clients to call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten if you want
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-TARGET_SR = 16000  # wav2vec2 expects 16kHz
+TARGET_SR = 16000
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -45,23 +45,25 @@ async def home():
           <input name="file" type="file" accept=".wav,.mp3,.flac,.ogg" />
           <input type="submit" value="Upload" />
         </form>
-        <p>Try POST /predict with multipart form "file".</p>
       </body>
     </html>
     """
+
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
+
 @app.get("/labels")
 async def labels():
     return model.config.id2label
 
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
-        # Save upload to a temp file so torchaudio can read reliably
+        # Save upload to a temp file
         suffix = Path(file.filename or "").suffix or ".wav"
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             raw = await file.read()
@@ -71,17 +73,17 @@ async def predict(file: UploadFile = File(...)):
         # Load audio
         waveform, sr = torchaudio.load(tmp_path)
 
-        # Clean temp file
+        # Clean up
         try:
             os.unlink(tmp_path)
         except Exception:
             pass
 
-        # Convert stereo → mono
+        # Stereo → mono
         if waveform.shape[0] > 1:
             waveform = torch.mean(waveform, dim=0, keepdim=True)
 
-        # Resample to 16k if needed
+        # Resample to 16kHz if needed
         if sr != TARGET_SR:
             resampler = torchaudio.transforms.Resample(orig_freq=sr, new_freq=TARGET_SR)
             waveform = resampler(waveform)
@@ -101,16 +103,21 @@ async def predict(file: UploadFile = File(...)):
 
         labels = model.config.id2label
         result = {labels[i]: float(probs[i]) for i in range(len(labels))}
-        # Also return the top label for convenience
         top_idx = int(probs.argmax())
+
         return JSONResponse(content={"top": labels[top_idx], "scores": result})
 
-
     except Exception as e:
+        import traceback
+        # 🔥 Debugging logs for Railway
+        print("🔥 Error in /predict:", e)
+        traceback.print_exc()
         return JSONResponse(status_code=400, content={"error": str(e)})
 
+
 if __name__ == "__main__":
-    import os
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))  # fallback 8000 for local testing
+
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
