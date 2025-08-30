@@ -1,6 +1,7 @@
+# Dockerfile
 FROM python:3.10-slim
 
-# Install system dependencies (audio backends for torchaudio & ffmpeg for mp3/ogg/flac)
+# Install system deps for audio decoding + basic build utilities (kept minimal)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libsndfile1 \
@@ -8,16 +9,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements and install
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy app code
-COPY . .
+# Copy app source
+COPY . /app
 
-# Railway/Render expect your app to listen on $PORT
+# Default port (Railway provides PORT env; default to 8000 if not set)
 ENV PORT=8000
 EXPOSE 8000
 
-# Start FastAPI with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use Gunicorn with Uvicorn worker for better worker lifecycle management.
+# Use sh -c so $PORT expands at container run time.
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker app:app -b 0.0.0.0:$PORT --workers 1 --timeout 120"]
